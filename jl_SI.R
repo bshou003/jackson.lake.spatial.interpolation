@@ -11,10 +11,8 @@ library('parallel')
 #### Calling in isotope data ####
 all.iso<-read_csv("~/Documents/Data/Chapter.3/Isotope.Data/isotope.data")
 
-
-
 # Calling Depth data#
-JL.depth.202308 <- read_csv('~/Documents/Data/Jackson_Lake_Bathy/2023.08.23.depths.csv',show_col_types = FALSE)
+#JL.depth.202308 <- read_csv('~/Documents/Data/Jackson_Lake_Bathy/2023.08.23.depths.csv',show_col_types = FALSE)
 
 #### Calling in the spatial information & setting up Jackson Lake Grid ####
 JL_SP <- read_csv('~/Documents/Data/Lake_YSI/Coords.csv',show_col_types = FALSE) %>% #Calling the latitude and longitude of each sampling point
@@ -177,18 +175,6 @@ write_csv(v10.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_a
 write_csv(v11.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v11a")
 write_csv(v12.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v12a")
 
-####Testing different variable to test effects on isotopic information ####
-library(units)
-ggplot()+
-  geom_point(data = event8_sp, aes(x = distance, y = dxs))
-
-
-
-JL_line <- st_cast(JL, "LINESTRING")
-plot(JL_line)
-JL1 <- event8_sp[1, ]
-event8_sp$distance <- st_distance(event8_sp, JL1) 
-
 #### Functions for Inverse Distance Weighting and Nearest Neighbor. ####
 
 #Inverse Distance Weighting:This interpolates values between points by considering all points that have been sampled.Sampling points are weighted with the weights inversely proporational to the distance between the unsampled and sampled locations.
@@ -199,6 +185,7 @@ idw.function <- function(variable, dataframe, idw.b){
         nmax = 3,
         set = list(idp = idw.b))} # beta = 1, This is the idw function,using a variable in the formula with an intercept only model, locations are taken from the sp object JL_2023_1, nmax is the number of sites is uses, idp is the beta having weights of 1
 
+#This is the prediction function for Hydrogen. I have created one for hydrogen, oxygen, and dxs
 pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes){
   resp <- predict(idw_res, pred.dataframe.points) #this is what creates the predictions on top of the grid that has been constructed
   resp$x <- st_coordinates(resp)[,1] #retrieves the x coordinates
@@ -208,10 +195,12 @@ pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
   pred <- terra::rasterize(resp, pred.grid, field = "pred", fun = "mean") #Creating the raster prediction surface
   #plot.title <- paste("Inverse Distance Weighting, beta =", idw.b, sep = " ")
   plot.title <- (paste("September Interpolation 2023 (IDW)"))
-  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = num.classes, title = expression(paste(delta^2, "H (\u2030)"))) + tm_shape(event9_sp)+
+  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = num.classes, title = expression(paste(delta^2, "H (\u2030)"))) + tm_shape(points)+
     tm_dots(col = "d2H", size = 0.2, palette = "viridis",legend.show = FALSE) +     
     tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 2)} #plotting the raster
 #, legend.position = c("right", "top")
+
+#This is the prediction function for oxygen.
 pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes){
   resp <- predict(idw_res, pred.dataframe.points) #this is what creates the predictions on top of the grid that has been constructed
   resp$x <- st_coordinates(resp)[,1] #retrieves the x coordinates
@@ -221,11 +210,13 @@ pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
   pred <- terra::rasterize(resp, pred.grid, field = "pred", fun = "mean") #Creating the raster prediction surface
   #plot.title <- paste("Inverse Distance Weighting, beta =", idw.b, sep = " ")
   plot.title <- paste("September Interpolation 2023 (IDW)")
-  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = num.classes, title = expression(paste(delta^18, "O (\u2030)"))) + tm_shape(event9_sp)+
+  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = num.classes, title = expression(paste(delta^18, "O (\u2030)"))) + tm_shape(points)+
     tm_dots(col = "d18O", size = 0.2, palette = "viridis",legend.show = FALSE) +     
     tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 2)} #plotting the raster
 # legend.position = c("right", "top"),
-pred.function.idw.dxs <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes){
+
+#This is the prediction function for dxs.
+pred.function.idw.dxs <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes, points){
   resp <- predict(idw_res, pred.dataframe.points) #this is what creates the predictions on top of the grid that has been constructed
   resp$x <- st_coordinates(resp)[,1] #retrieves the x coordinates
   resp$y <- st_coordinates(resp)[,2] #retrieves the y coordinates
@@ -234,20 +225,20 @@ pred.function.idw.dxs <- function(idw_res, pred.dataframe.points, pred.grid, idw
   pred <- terra::rasterize(resp, pred.grid, field = "pred", fun = "mean") #Creating the raster prediction surface
   #plot.title <- paste("Inverse Distance Weighting, beta =", idw.b, sep = " ")
   plot.title <- paste("September Interpolation 2023 (IDW)")
-  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "-viridis", n = num.classes, title = "d-excess") + tm_shape(event9_sp)+
+  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "-viridis", n = num.classes, title = "d-excess") + tm_shape(points)+
     tm_dots(col = "dxs", size = 0.2, palette = "-viridis",legend.show = FALSE) +     
     tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 1)} #plotting the raster
 
-JL_idw_H.8 <- idw.function(event8_sp$d2H, event8_sp, 8) 
-JL_idw.H.8 <- pred.function.idw.h(JL_idw_H.8, coop, grid,1, 10)
+JL_idw_H.8 <- idw.function(JLe7$d2H, JLe7, 8) 
+JL_idw.H.8 <- pred.function.idw.h(JL_idw_H.8, coop, grid,1, 10, JLe7)
 JL_idw.H.8
 
-JL_idw_O.8 <- idw.function(event8_sp$d18O, event8_sp, 8)
-JL_idw.O.8 <- pred.function.idw.o(JL_idw_O.8, coop, grid,1, 10)
+JL_idw_O.8 <- idw.function(JLe7$d18O, JLe7, 8)
+JL_idw.O.8 <- pred.function.idw.o(JL_idw_O.8, coop, grid,1, 10, JLe7)
 JL_idw.O.8
 
-JL_idw_dxs.8 <- idw.function(event8_sp$dxs, event8_sp, 8)
-JL_idw.dxs.8 <- pred.function.idw.dxs(JL_idw_dxs.8, coop, grid,1, 10)
+JL_idw_dxs.8 <- idw.function(JLe7$dxs, JLe7, 8)
+JL_idw.dxs.8 <- pred.function.idw.dxs(JL_idw_dxs.8, coop, grid,1, 10, JLe7)
 JL_idw.dxs.8
 
 JL_idw_H.9 <- idw.function(event9_sp$d2H, event9_sp, 2) 
