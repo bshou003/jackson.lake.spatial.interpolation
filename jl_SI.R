@@ -186,7 +186,7 @@ idw.function <- function(variable, dataframe, idw.b){
         set = list(idp = idw.b))} # beta = 1, This is the idw function,using a variable in the formula with an intercept only model, locations are taken from the sp object JL_2023_1, nmax is the number of sites is uses, idp is the beta having weights of 1
 
 #This is the prediction function for Hydrogen. I have created one for hydrogen, oxygen, and dxs
-pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes){
+pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes, points){
   resp <- predict(idw_res, pred.dataframe.points) #this is what creates the predictions on top of the grid that has been constructed
   resp$x <- st_coordinates(resp)[,1] #retrieves the x coordinates
   resp$y <- st_coordinates(resp)[,2] #retrieves the y coordinates
@@ -201,7 +201,7 @@ pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
 #, legend.position = c("right", "top")
 
 #This is the prediction function for oxygen.
-pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes){
+pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes, points){
   resp <- predict(idw_res, pred.dataframe.points) #this is what creates the predictions on top of the grid that has been constructed
   resp$x <- st_coordinates(resp)[,1] #retrieves the x coordinates
   resp$y <- st_coordinates(resp)[,2] #retrieves the y coordinates
