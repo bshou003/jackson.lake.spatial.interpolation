@@ -7,13 +7,38 @@ library(tmap) #mapping package
 library(dataRetrieval) #Used to retrieve data from USGS
 library(viridis)
 library('parallel')
-
+library(sp)
 #### Calling in isotope data ####
-all.iso<-read_csv("~/Documents/Data/Chapter.3/Isotope.Data/isotope.data")
+all.iso<-read_csv("~/Documents/Data/Chapter.3/Isotope.Data/isotope.data") %>% 
+  filter(SITE != "JL3.7" & SITE != "JL8.7" & Setting.Type == "Lake") %>% 
+  subset(select = c(SITE, Event, d18O, d2H, dxs)) %>% 
+  group_by(SITE) %>% 
+  reframe(d18O = mean(d18O),
+          d2H = mean(d2H),
+          dxs = mean(dxs),
+          Event = Event) %>% 
+  distinct()
 
 # Calling Depth data#
 #JL.depth.202308 <- read_csv('~/Documents/Data/Jackson_Lake_Bathy/2023.08.23.depths.csv',show_col_types = FALSE)
+#Calling GRTE LiDar
+grte <- rast("~/Documents/Data/Chapter.1/Watershed.Delineation/dem_fill.tif")
+tm_shape(grte)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "brewer.rd_yl_gn",
+    midpoint = NA))
 
+blavet_bbox <- st_bbox(c(xmin = 230000, xmax = 258000, ymax = 545000, ymin = 515000), 
+                       crs = st_crs(grte))
+blavet_loc <- st_as_sfc(blavet_bbox)|> st_sf()
+blavet_loc <- st_transform(blavet_loc, crs = st_crs(grte))
+
+
+plot(grte)
+plot(JL, add = TRUE)
+test <- crop(grte, blavet_loc)
+plot(test)
+plot(JL2, add = TRUE)
 #### Calling in the spatial information & setting up Jackson Lake Grid ####
 JL_SP <- read_csv('~/Documents/Data/Lake_YSI/Coords.csv',show_col_types = FALSE) %>% #Calling the latitude and longitude of each sampling point
   filter(grepl('JL', SITE))
@@ -33,11 +58,11 @@ JL_SP10 <- st_transform(JL_SP10, crs = st_crs(JL)) %>%
   dplyr::mutate(x = sf::st_coordinates(.)[,1],
                 y = sf::st_coordinates(.)[,2])
 
-event8_sp <- merge(JL_SP, event8, by = "SITE")
-event8_sp <- merge(event8_sp, JL.depth.202308, by = "SITE")
-
-event9_sp <- merge(JL_SP, event9, by = "SITE")
-event9_sp <- merge(event9_sp, JL.depth.202308, by = "SITE")
+# event8_sp <- merge(JL_SP, event8, by = "SITE")
+# event8_sp <- merge(event8_sp, JL.depth.202308, by = "SITE")
+# 
+# event9_sp <- merge(JL_SP, event9, by = "SITE")
+# event9_sp <- merge(event9_sp, JL.depth.202308, by = "SITE")
 
 
 grid <- terra::rast(JL, nrows = 1000, ncols = 1000) #Creates a raster grid of 1000 X 1000  
@@ -55,65 +80,22 @@ qtm(coop)
 #voronoi polygons around points sampled during each event
 #Calling isotopic data to know what points I sampled during each event
 e7 <- all.iso %>% 
-  filter(Event == 7 & Setting.Type == "Lake") %>% 
-  filter(SITE != "JL3.7" & SITE != "JL8.7") %>% 
-  subset(select = c(SITE, Event, d18O, d2H, dxs)) %>% 
-  group_by(SITE) %>% 
-  reframe(d18O = mean(d18O),
-          d2H = mean(d2H),
-          dxs = mean(dxs),
-          Event = Event) %>% 
-  distinct()
-
+  filter(Event == 7) 
+  
 e8 <- all.iso %>% 
-  filter(Event == 8 & Setting.Type == "Lake")%>% 
-  subset(select = c(SITE, Event, d18O, d2H, dxs)) %>% 
-  group_by(SITE) %>% 
-  reframe(d18O = mean(d18O),
-          d2H = mean(d2H),
-          dxs = mean(dxs),
-          Event = Event) %>% 
-  distinct()
+  filter(Event == 8)
 
 e9 <- all.iso %>% 
-  filter(Event == 9 & Setting.Type == "Lake")%>% 
-  subset(select = c(SITE, Event, d18O, d2H, dxs)) %>% 
-  group_by(SITE) %>% 
-  reframe(d18O = mean(d18O),
-          d2H = mean(d2H),
-          dxs = mean(dxs),
-          Event = Event) %>% 
-  distinct()
+  filter(Event == 9)
 
 e10 <- all.iso %>% 
-  filter(Event == 10 & Setting.Type == "Lake")%>% 
-  subset(select = c(SITE, Event, d18O, d2H, dxs)) %>% 
-  group_by(SITE) %>% 
-  reframe(d18O = mean(d18O),
-          d2H = mean(d2H),
-          dxs = mean(dxs),
-          Event = Event) %>% 
-  distinct()
+  filter(Event == 10)
 
 e11 <- all.iso %>% 
-  filter(Event == 11 & Setting.Type == "Lake")%>% 
-  subset(select = c(SITE, Event, d18O, d2H, dxs)) %>% 
-  group_by(SITE) %>% 
-  reframe(d18O = mean(d18O),
-          d2H = mean(d2H),
-          dxs = mean(dxs),
-          Event = Event) %>% 
-  distinct()
+  filter(Event == 11)
 
 e12 <- all.iso %>% 
-  filter(Event == 12 & Setting.Type == "Lake")%>% 
-  subset(select = c(SITE, Event, d18O, d2H, dxs)) %>% 
-  group_by(SITE) %>% 
-  reframe(d18O = mean(d18O),
-          d2H = mean(d2H),
-          dxs = mean(dxs),
-          Event = Event) %>% 
-  distinct()
+  filter(Event == 12)
 #Merging points actual sampled points.
 JLe7 <- JL_SP %>% 
   merge(e7)
@@ -167,22 +149,22 @@ v11.a <- data.frame(SITE = cv11[["SITE"]],
 v12.a <- data.frame(SITE = cv12[["SITE"]],
                     v.area.m2 = cv12[["v.area.m2"]],
                     Event = 12)
-#Writing to disk
-write_csv(v7.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v7a")
-write_csv(v8.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v8a")
-write_csv(v9.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v9a")
-write_csv(v10.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v10a")
-write_csv(v11.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v11a")
-write_csv(v12.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v12a")
 
+#Writing to disk, Has been written
+# write_csv(v7.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v7a")
+# write_csv(v8.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v8a")
+# write_csv(v9.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v9a")
+# write_csv(v10.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v10a")
+# write_csv(v11.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v11a")
+# write_csv(v12.a, "~/Documents/Data/Chapter.3/IMB/variables.data.tables/voronoi_areas/v12a")
+rm(e7,e8,e9,e10,e11,e12)
 #### Functions for Inverse Distance Weighting and Nearest Neighbor. ####
-
 #Inverse Distance Weighting:This interpolates values between points by considering all points that have been sampled.Sampling points are weighted with the weights inversely proporational to the distance between the unsampled and sampled locations.
 
 idw.function <- function(variable, dataframe, idw.b){
   gstat(formula = variable ~ 1, locations = dataframe,
-        # nmax = nrow(dataframe), # use all the neighbors locations
-        nmax = 3,
+        nmax = nrow(dataframe), # use all the neighbors locations
+        #nmax = 3,
         set = list(idp = idw.b))} # beta = 1, This is the idw function,using a variable in the formula with an intercept only model, locations are taken from the sp object JL_2023_1, nmax is the number of sites is uses, idp is the beta having weights of 1
 
 #This is the prediction function for Hydrogen. I have created one for hydrogen, oxygen, and dxs
@@ -193,12 +175,48 @@ pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
   resp$pred <- resp$var1.pred #creates a prediction column
   
   pred <- terra::rasterize(resp, pred.grid, field = "pred", fun = "mean") #Creating the raster prediction surface
-  #plot.title <- paste("Inverse Distance Weighting, beta =", idw.b, sep = " ")
-  plot.title <- (paste("September Interpolation 2023 (IDW)"))
-  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = num.classes, title = expression(paste(delta^2, "H (\u2030)"))) + tm_shape(points)+
-    tm_dots(col = "d2H", size = 0.2, palette = "viridis",legend.show = FALSE) +     
-    tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 2)} #plotting the raster
-#, legend.position = c("right", "top")
+  tm_shape(test)+
+    tm_raster(col.scale = tmap::tm_scale_continuous(
+      values = "grey",
+      midpoint = NA),
+      col.legend = tmap::tm_legend_hide()) + 
+    tm_shape(pred) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^2, "H (\u2030)")),
+      title.size = 1,
+      reverse = TRUE,
+      text.size = 1,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+    tm_options(component.autoscale = (FALSE))+ 
+    tm_shape(points)+ tm_dots(col = "d2H", size = 0.4, palette = "black",legend.show = FALSE)}
+
+
+#Creating the hydrogen spatial interpolations, inverse weight is 3. most common
+#is 2 visually 3 is how I would expect the water isotopes to behave.
+JL_idw_H.7 <- idw.function(JLe7$d2H, JLe7, 3) 
+JL_idw.H.7 <- pred.function.idw.h(JL_idw_H.7, coop, grid,1, 5, JLe7)
+JL_idw.H.7
+JL_idw_H.8 <- idw.function(JLe8$d2H, JLe8, 3) 
+JL_idw.H.8 <- pred.function.idw.h(JL_idw_H.8, coop, grid,1, 10, JLe8)
+JL_idw.H.8
+JL_idw_H.9 <- idw.function(JLe9$d2H, JLe9, 3) 
+JL_idw.H.9 <- pred.function.idw.h(JL_idw_H.9, coop, grid,1, 10, JLe9)
+JL_idw.H.9
+JL_idw_H.10 <- idw.function(JLe10$d2H, JLe10, 3) 
+JL_idw.H.10 <- pred.function.idw.h(JL_idw_H.10, coop, grid,1, 10, JLe10)
+JL_idw.H.10
+JL_idw_H.11 <- idw.function(JLe11$d2H, JLe11, 3) 
+JL_idw.H.11 <- pred.function.idw.h(JL_idw_H.11, coop, grid,1, 10, JLe11)
+JL_idw.H.11
+JL_idw_H.12 <- idw.function(JLe12$d2H, JLe12, 3) 
+JL_idw.H.12 <- pred.function.idw.h(JL_idw_H.12, coop, grid,1, 10, JLe12)
+JL_idw.H.12
+
 
 #This is the prediction function for oxygen.
 pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes, points){
@@ -215,6 +233,10 @@ pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
     tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 2)} #plotting the raster
 # legend.position = c("right", "top"),
 
+JL_idw_O.8 <- idw.function(JLe7$d18O, JLe7, 8)
+JL_idw.O.8 <- pred.function.idw.o(JL_idw_O.8, coop, grid,1, 10, JLe7)
+JL_idw.O.8
+
 #This is the prediction function for dxs.
 pred.function.idw.dxs <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes, points){
   resp <- predict(idw_res, pred.dataframe.points) #this is what creates the predictions on top of the grid that has been constructed
@@ -228,14 +250,6 @@ pred.function.idw.dxs <- function(idw_res, pred.dataframe.points, pred.grid, idw
   tm_shape(pred) + tm_raster(alpha = 0.6, palette = "-viridis", n = num.classes, title = "d-excess") + tm_shape(points)+
     tm_dots(col = "dxs", size = 0.2, palette = "-viridis",legend.show = FALSE) +     
     tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 1)} #plotting the raster
-
-JL_idw_H.8 <- idw.function(JLe7$d2H, JLe7, 8) 
-JL_idw.H.8 <- pred.function.idw.h(JL_idw_H.8, coop, grid,1, 10, JLe7)
-JL_idw.H.8
-
-JL_idw_O.8 <- idw.function(JLe7$d18O, JLe7, 8)
-JL_idw.O.8 <- pred.function.idw.o(JL_idw_O.8, coop, grid,1, 10, JLe7)
-JL_idw.O.8
 
 JL_idw_dxs.8 <- idw.function(JLe7$dxs, JLe7, 8)
 JL_idw.dxs.8 <- pred.function.idw.dxs(JL_idw_dxs.8, coop, grid,1, 10, JLe7)
