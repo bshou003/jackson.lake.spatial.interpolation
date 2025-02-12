@@ -21,24 +21,28 @@ all.iso<-read_csv("~/Documents/Data/Chapter.3/Isotope.Data/isotope.data") %>%
 
 # Calling Depth data#
 #JL.depth.202308 <- read_csv('~/Documents/Data/Jackson_Lake_Bathy/2023.08.23.depths.csv',show_col_types = FALSE)
-#Calling GRTE LiDar
+#Calling GRTE Lidar
 grte <- rast("~/Documents/Data/Chapter.1/Watershed.Delineation/dem_fill.tif")
 tm_shape(grte)+
   tm_raster(col.scale = tmap::tm_scale_continuous(
     values = "brewer.rd_yl_gn",
     midpoint = NA))
 
-blavet_bbox <- st_bbox(c(xmin = 230000, xmax = 258000, ymax = 545000, ymin = 515000), 
+tribs <- read_sf(dsn = "~/Documents/Data/Chapter.3/de_Lavenne_Delineation_Attempt/stream_vector/", layer = "stream_vectors")
+tribs <- st_as_sfc(tribs)|> st_sf()
+tribs <- st_transform(tribs, crs = st_crs(grte))
+blavet_bbox <- st_bbox(c(xmin = 235000, xmax = 255000, ymax = 545000, ymin = 515000), 
                        crs = st_crs(grte))
 blavet_loc <- st_as_sfc(blavet_bbox)|> st_sf()
 blavet_loc <- st_transform(blavet_loc, crs = st_crs(grte))
 
 
-plot(grte)
-plot(JL, add = TRUE)
+
 test <- crop(grte, blavet_loc)
+tribs <- st_crop(tribs, blavet_loc)
 plot(test)
 plot(JL2, add = TRUE)
+plot(tribs, add = TRUE)
 #### Calling in the spatial information & setting up Jackson Lake Grid ####
 JL_SP <- read_csv('~/Documents/Data/Lake_YSI/Coords.csv',show_col_types = FALSE) %>% #Calling the latitude and longitude of each sampling point
   filter(grepl('JL', SITE))
@@ -163,8 +167,8 @@ rm(e7,e8,e9,e10,e11,e12)
 
 idw.function <- function(variable, dataframe, idw.b){
   gstat(formula = variable ~ 1, locations = dataframe,
-        nmax = nrow(dataframe), # use all the neighbors locations
-        #nmax = 3,
+        #nmax = nrow(dataframe), # use all the neighbors locations
+        nmax = 3,
         set = list(idp = idw.b))} # beta = 1, This is the idw function,using a variable in the formula with an intercept only model, locations are taken from the sp object JL_2023_1, nmax is the number of sites is uses, idp is the beta having weights of 1
 
 #This is the prediction function for Hydrogen. I have created one for hydrogen, oxygen, and dxs
@@ -180,14 +184,15 @@ pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
       values = "grey",
       midpoint = NA),
       col.legend = tmap::tm_legend_hide()) + 
+    tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
     tm_shape(pred) + tm_raster(col.scale = tmap::tm_scale_continuous(
     values = "viridis",
     midpoint = NA),
     col.legend = tmap::tm_legend(
       title = expression(paste(delta^2, "H (\u2030)")),
-      title.size = 1,
+      title.size = 1.7,
       reverse = TRUE,
-      text.size = 1,
+      text.size = 1.7,
       bg.color = "white",
       bg.alpha = 0.7,
       position = tmap::tm_pos_in("right", "top"),
@@ -201,22 +206,39 @@ pred.function.idw.h <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
 JL_idw_H.7 <- idw.function(JLe7$d2H, JLe7, 3) 
 JL_idw.H.7 <- pred.function.idw.h(JL_idw_H.7, coop, grid,1, 5, JLe7)
 JL_idw.H.7
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/hydrogen/H202307", width = 700, height = 1000)
+JL_idw.H.7
+dev.off()
 JL_idw_H.8 <- idw.function(JLe8$d2H, JLe8, 3) 
-JL_idw.H.8 <- pred.function.idw.h(JL_idw_H.8, coop, grid,1, 10, JLe8)
+JL_idw.H.8 <- pred.function.idw.h(JL_idw_H.8, coop, grid,1, 5, JLe8)
 JL_idw.H.8
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/hydrogen/H202308", width = 700, height = 1000)
+JL_idw.H.8
+dev.off()
 JL_idw_H.9 <- idw.function(JLe9$d2H, JLe9, 3) 
-JL_idw.H.9 <- pred.function.idw.h(JL_idw_H.9, coop, grid,1, 10, JLe9)
+JL_idw.H.9 <- pred.function.idw.h(JL_idw_H.9, coop, grid,1, 5, JLe9)
 JL_idw.H.9
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/hydrogen/H202309", width = 700, height = 1000)
+JL_idw.H.9
+dev.off()
 JL_idw_H.10 <- idw.function(JLe10$d2H, JLe10, 3) 
-JL_idw.H.10 <- pred.function.idw.h(JL_idw_H.10, coop, grid,1, 10, JLe10)
+JL_idw.H.10 <- pred.function.idw.h(JL_idw_H.10, coop, grid,1, 5, JLe10)
 JL_idw.H.10
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/hydrogen/H202406", width = 700, height = 1000)
+JL_idw.H.10
+dev.off()
 JL_idw_H.11 <- idw.function(JLe11$d2H, JLe11, 3) 
-JL_idw.H.11 <- pred.function.idw.h(JL_idw_H.11, coop, grid,1, 10, JLe11)
+JL_idw.H.11 <- pred.function.idw.h(JL_idw_H.11, coop, grid,1, 5, JLe11)
 JL_idw.H.11
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/hydrogen/H202407", width = 700, height = 1000)
+JL_idw.H.11
+dev.off()
 JL_idw_H.12 <- idw.function(JLe12$d2H, JLe12, 3) 
-JL_idw.H.12 <- pred.function.idw.h(JL_idw_H.12, coop, grid,1, 10, JLe12)
+JL_idw.H.12 <- pred.function.idw.h(JL_idw_H.12, coop, grid,1, 5, JLe12)
 JL_idw.H.12
-
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/hydrogen/H202408", width = 700, height = 1000)
+JL_idw.H.12
+dev.off()
 
 #This is the prediction function for oxygen.
 pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes, points){
@@ -226,18 +248,65 @@ pred.function.idw.o <- function(idw_res, pred.dataframe.points, pred.grid, idw.b
   resp$pred <- resp$var1.pred #creates a prediction column
   
   pred <- terra::rasterize(resp, pred.grid, field = "pred", fun = "mean") #Creating the raster prediction surface
-  #plot.title <- paste("Inverse Distance Weighting, beta =", idw.b, sep = " ")
-  plot.title <- paste("September Interpolation 2023 (IDW)")
-  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = num.classes, title = expression(paste(delta^18, "O (\u2030)"))) + tm_shape(points)+
-    tm_dots(col = "d18O", size = 0.2, palette = "viridis",legend.show = FALSE) +     
-    tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 2)} #plotting the raster
-# legend.position = c("right", "top"),
+  tm_shape(test)+
+    tm_raster(col.scale = tmap::tm_scale_continuous(
+      values = "grey",
+      midpoint = NA),
+      col.legend = tmap::tm_legend_hide()) +
+    tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+    tm_shape(pred) + tm_raster(col.scale = tmap::tm_scale_continuous(
+      values = "viridis",
+      midpoint = NA),
+      col.legend = tmap::tm_legend(
+        title = expression(paste(delta^18, "O (\u2030)")),
+        title.size = 1.7,
+        reverse = TRUE,
+        text.size = 1.7,
+        bg.color = "white",
+        bg.alpha = 0.7,
+        position = tmap::tm_pos_in("right", "top"),
+        frame = TRUE))+
+    tm_options(component.autoscale = (FALSE))+ 
+    tm_shape(points)+ tm_dots(col = "d18O", size = 0.4, palette = "black",legend.show = FALSE)}
 
-JL_idw_O.8 <- idw.function(JLe7$d18O, JLe7, 8)
-JL_idw.O.8 <- pred.function.idw.o(JL_idw_O.8, coop, grid,1, 10, JLe7)
+
+JL_idw_O.7 <- idw.function(JLe7$d18O, JLe7, 3)
+JL_idw.O.7 <- pred.function.idw.o(JL_idw_O.7, coop, grid,1, 5, JLe7)
+JL_idw.O.7
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/oxygen/o202306", width = 700, height = 1000)
+JL_idw.O.7
+dev.off()
+JL_idw_O.8 <- idw.function(JLe8$d18O, JLe8, 3)
+JL_idw.O.8 <- pred.function.idw.o(JL_idw_O.8, coop, grid,1, 5, JLe8)
 JL_idw.O.8
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/oxygen/o202307", width = 700, height = 1000)
+JL_idw.O.8
+dev.off()
+JL_idw_O.9 <- idw.function(JLe9$d18O, JLe9, 3)
+JL_idw.O.9 <- pred.function.idw.o(JL_idw_O.9, coop, grid,1, 5, JLe9)
+JL_idw.O.9
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/oxygen/o202308", width = 700, height = 1000)
+JL_idw.O.9
+dev.off()
+JL_idw_O.10 <- idw.function(JLe10$d18O, JLe10, 3)
+JL_idw.O.10 <- pred.function.idw.o(JL_idw_O.10, coop, grid,1, 5, JLe10)
+JL_idw.O.10
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/oxygen/o202406", width = 700, height = 1000)
+JL_idw.O.10
+dev.off()
+JL_idw_O.11 <- idw.function(JLe11$d18O, JLe11, 3)
+JL_idw.O.11 <- pred.function.idw.o(JL_idw_O.11, coop, grid,1, 5, JLe11)
+JL_idw.O.11
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/oxygen/o202407", width = 700, height = 1000)
+JL_idw.O.11
+dev.off()
+JL_idw_O.12 <- idw.function(JLe12$d18O, JLe12, 3)
+JL_idw.O.12 <- pred.function.idw.o(JL_idw_O.12, coop, grid,1, 5, JLe12)
+JL_idw.O.12
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/oxygen/o202408", width = 700, height = 1000)
+JL_idw.O.12
+dev.off()
 
-#This is the prediction function for dxs.
 pred.function.idw.dxs <- function(idw_res, pred.dataframe.points, pred.grid, idw.b, num.classes, points){
   resp <- predict(idw_res, pred.dataframe.points) #this is what creates the predictions on top of the grid that has been constructed
   resp$x <- st_coordinates(resp)[,1] #retrieves the x coordinates
@@ -245,27 +314,68 @@ pred.function.idw.dxs <- function(idw_res, pred.dataframe.points, pred.grid, idw
   resp$pred <- resp$var1.pred #creates a prediction column
   
   pred <- terra::rasterize(resp, pred.grid, field = "pred", fun = "mean") #Creating the raster prediction surface
-  #plot.title <- paste("Inverse Distance Weighting, beta =", idw.b, sep = " ")
-  plot.title <- paste("September Interpolation 2023 (IDW)")
-  tm_shape(pred) + tm_raster(alpha = 0.6, palette = "-viridis", n = num.classes, title = "d-excess") + tm_shape(points)+
-    tm_dots(col = "dxs", size = 0.2, palette = "-viridis",legend.show = FALSE) +     
-    tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 1)} #plotting the raster
+  tm_shape(test)+
+    tm_raster(col.scale = tmap::tm_scale_continuous(
+      values = "grey",
+      midpoint = NA),
+      col.legend = tmap::tm_legend_hide()) + 
+    tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+    tm_shape(pred) + tm_raster(col.scale = tmap::tm_scale_continuous(
+      values = "-viridis",
+      midpoint = NA),
+      col.legend = tmap::tm_legend(
+        title = "d-excess",
+        title.size = 1.7,
+        reverse = FALSE,
+        text.size = 1.7,
+        bg.color = "white",
+        bg.alpha = 0.7,
+        position = tmap::tm_pos_in("right", "top"),
+        frame = TRUE))+
+    tm_options(component.autoscale = (FALSE))+ 
+    tm_shape(points)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)}
 
-JL_idw_dxs.8 <- idw.function(JLe7$dxs, JLe7, 8)
-JL_idw.dxs.8 <- pred.function.idw.dxs(JL_idw_dxs.8, coop, grid,1, 10, JLe7)
+JL_idw_dxs.7 <- idw.function(JLe7$dxs, JLe7, 3)
+JL_idw.dxs.7 <- pred.function.idw.dxs(JL_idw_dxs.7, coop, grid,1, 5, JLe7)
+JL_idw.dxs.7
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/dxs/dxs202307", width = 700, height = 1000)
+JL_idw.dxs.7
+dev.off()
+
+JL_idw_dxs.8 <- idw.function(JLe8$dxs, JLe8, 3)
+JL_idw.dxs.8 <- pred.function.idw.dxs(JL_idw_dxs.8, coop, grid,1, 5, JLe8)
 JL_idw.dxs.8
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/dxs/dxs202308", width = 700, height = 1000)
+JL_idw.dxs.8
+dev.off()
 
-JL_idw_H.9 <- idw.function(event9_sp$d2H, event9_sp, 2) 
-JL_idw.H.9 <- pred.function.idw.h(JL_idw_H.9, coop, grid,2, 6)
-JL_idw.H.9
-
-JL_idw_O.9 <- idw.function(event9_sp$d18O, event9_sp, 2)
-JL_idw.O.9 <- pred.function.idw.o(JL_idw_O.9, coop, grid,2, 5)
-JL_idw.O.9
-
-JL_idw_dxs.9 <- idw.function(event9_sp$dxs, event9_sp, 2)
-JL_idw.dxs.9 <- pred.function.idw.dxs(JL_idw_dxs.9, coop, grid,2, 8)
+JL_idw_dxs.9 <- idw.function(JLe9$dxs, JLe9, 3)
+JL_idw.dxs.9 <- pred.function.idw.dxs(JL_idw_dxs.9, coop, grid,1, 5, JLe9)
 JL_idw.dxs.9
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/dxs/dxs202309", width = 700, height = 1000)
+JL_idw.dxs.9
+dev.off()
+
+JL_idw_dxs.10 <- idw.function(JLe10$dxs, JLe10, 3)
+JL_idw.dxs.10 <- pred.function.idw.dxs(JL_idw_dxs.10, coop, grid,1, 5, JLe10)
+JL_idw.dxs.10
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/dxs/dxs202406", width = 700, height = 1000)
+JL_idw.dxs.10
+dev.off()
+
+JL_idw_dxs.11 <- idw.function(JLe11$dxs, JLe11, 3)
+JL_idw.dxs.11 <- pred.function.idw.dxs(JL_idw_dxs.11, coop, grid,1, 5, JLe11)
+JL_idw.dxs.11
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/dxs/dxs202407", width = 700, height = 1000)
+JL_idw.dxs.11
+dev.off()
+
+JL_idw_dxs.12 <- idw.function(JLe12$dxs, JLe12, 3)
+JL_idw.dxs.12 <- pred.function.idw.dxs(JL_idw_dxs.12, coop, grid,1, 5, JLe12)
+JL_idw.dxs.12
+png(filename="~/Documents/Data/Chapter.3/Figures/idw/dxs/dxs202408", width = 700, height = 1000)
+JL_idw.dxs.12
+dev.off()
 
 
 ####Nearest Neighbor #####
@@ -286,52 +396,99 @@ tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = 7, title = expr
 
 
 #### Variogram ####
-## Constructing a variogram for dxs from Sampling event 8 ##
+## Constructing a variogram for dxs ##
+hist(JLe7$dxs)
+hist(JLe8$dxs)
+hist(JLe9$dxs)
+hist(JLe10$dxs)
+hist(JLe11$dxs)
+hist(JLe12$dxs)
+#Plotting sample variograms
+dxs7 <- variogram((dxs) ~ 1, data = JLe7)
+plot(dxs7)
+dxs8 <- variogram((dxs) ~ 1, data = JLe8)
+plot(dxs8)
+dxs9 <- variogram((dxs) ~ 1, data = JLe9)
+plot(dxs9)
+dxs10 <- variogram((dxs) ~ 1, data = JLe10)
+plot(dxs10)
+dxs11 <- variogram((dxs) ~ 1, data = JLe11)
+plot(dxs11)
+dxs12 <- variogram((dxs) ~ 1, data = JLe12)
+plot(dxs12)
+#Testing model fits with various variogram models
+#Weird Shape
+dxsvinitial7 <- vgm(psill = 0.2, model = "Per",
+                   range = 3000, nugget = 000)
+plot(dxs7, dxsvinitial7, cutoff = 1000, cex = 1.5)
+#Decent shape to model
+dxsvinitial8 <- vgm(psill = 0.3, model = "Sph",
+                    range = 1400, nugget = 0.0)
+plot(dxs8, dxsvinitial8, cutoff = 1000, cex = 1.5)
+#Went with the Wav function due to the high point at 1000 and the subsequent drop
+dxsvinitial9 <- vgm(psill = 0.3, model = "Wav",
+                    range = 900, nugget = 0.0)
+plot(dxs9, dxsvinitial9, cutoff = 1000, cex = 1.5)
+#Unsure of this fit
+dxsvinitial10 <- vgm(psill = 0.4, model = "Wav",
+                    range = 500, nugget = 0)
+plot(dxs10, dxsvinitial10, cutoff = 1000, cex = 1.5)
+#Pretty decent fit
+dxsvinitial11 <- vgm(psill = 0.25, model = "Wav",
+                    range = 600, nugget = 0.0)
+plot(dxs11, dxsvinitial11, cutoff = 1000, cex = 1.5)
 
-hist(event8_sp$dxs)
-dxsvc <- variogram((dxs) ~ 1, event8_sp, cloud = TRUE)
-plot(dxsvc) #This is a variogram cloud.
-
-dxsv <- variogram((dxs) ~ 1, data = event8_sp)
-plot(dxsv) #This is a sample variogram
-
-dxsvinitial <- vgm(psill = 0.6, model = "Wav",
-                   range = 2000, nugget = 0.0)
-plot(dxsv, dxsvinitial, cutoff = 1000, cex = 1.5)
-
-dxsfv <- fit.variogram(object = dxsv,
-                       model = vgm(psill =0.6, model = "Gau",
-                                   range = 2000, nugget = 0.0001))
-dxsfv
-plot(dxsv, dxsfv, cex = 1.5)
-
-####
-dxsv <- variogram((dxs) ~ 1, data = event9_sp, alpha = c(0, 45, + 90, 135))
-plot(dxsv) #This is a sample variogram
-
-dxsv <- variogram((dxs) ~ 1, data = event8_sp)
-plot(dxsv) #This is a sample variogram
+dxsvinitial12 <- vgm(psill = 0.20, model = "Wav",
+                    range = 1200, nugget = 0.0)
+plot(dxs12, dxsvinitial12, cutoff = 1000, cex = 1.5)
 
 
-dxsvinitial <- vgm(psill = 1, model = "Nug", nugget = 0.2)
-plot(dxsv, dxsvinitial, cutoff = 1000, cex = 1.5)
+#Fitting a variogram model
+#Can't get a model for sampling event 7
+dxsfv7 <- fit.variogram(object = dxs7,
+                       model = vgm(psill =0.4, model = "Per",
+                                   range = 3000, nugget = 0.000))
+dxsfv7
+plot(dxs7, dxsfv7, cex = 1.5)
+#Good model fit for sampling event 8
+dxsfv8 <- fit.variogram(object = dxs8,
+                        model = vgm(psill =0.3, model = "Sph",
+                                    range = 1400, nugget = 0.000))
+dxsfv8
+plot(dxs8, dxsfv8, cex = 1.5)
+#Decent model fit, not in love, but I think it captures the wiggles decent enough
+dxsfv9 <- fit.variogram(object = dxs9,
+                        model = vgm(psill =0.3, model = "Wav",
+                                    range = 900, nugget = 0.000))
+dxsfv9
+plot(dxs9, dxsfv9, cex = 1.5)
+#Unsure of how to approach this odd data set
+dxsfv10 <- fit.variogram(object = dxs10,
+                        model = vgm(psill =0.3, model = "Wav",
+                                    range = 900, nugget = 0.000))
+dxsfv10
+plot(dxs10, dxsfv10, cex = 1.5)
+#not the bestfit but it does capture some of the data 
+dxsfv11 <- fit.variogram(object = dxs11,
+                         model = vgm(psill =0.25, model = "Wav",
+                                     range = 600, nugget = 0.000))
+dxsfv11
+plot(dxs11, dxsfv11, cex = 1.5)
 
-dxsfv <- fit.variogram(object = dxsv,
-                       model = vgm("Nug"))
-dxsfv
-plot(dxsv, dxsfv, cex = 1.5)
-
-
-
+dxsfv12 <- fit.variogram(object = dxs12,
+                         model = vgm(psill =0.2, model = "Wav",
+                                     range = 1200, nugget = 0.000))
+dxsfv12
+plot(dxs12, dxsfv12, cex = 1.5)
 #### Kriging Interpolation plots ####
 ## dxs interpolation ##
-k <- gstat(formula = dxs ~ 1, data = event8_sp, model = dxsfv)
+k <- gstat(formula = dxs ~ 1, data = JLe12, model = dxsfv12)
 
 kpred <- predict(k, coop)
 kpred$dxs <- exp(kpred$var1.pred + 0.5 * (kpred$var1.var))
 
 ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
-  geom_sf(data = event8_sp) +
+  geom_sf(data = JLe12) +
   scale_color_viridis(name = "dxs", direction = -1) + theme_bw() +
   ggtitle("August Interpolation (Kriging)")+ guides(color=guide_colorbar(title='d-excess')) +
   theme(axis.text=element_text(size=12),
@@ -490,69 +647,6 @@ ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
 ggplot() + geom_sf(data = kpred, aes(color = var1.var)) +
   geom_sf(data = event8_sp) +
   scale_color_viridis(name = "variance") + theme_bw()
-#### Dual Isotope Plots ####
-
-ggplot() +
-  geom_point(data = run1, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run2, aes(x = d18O, y = d2H, col = Setting.Type)) +      
-  geom_point(data = run3, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run4, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run5, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run6, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run7, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run8, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run9, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run10, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run11, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run12, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run13, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_point(data = run14, aes(x = d18O, y = d2H, col = Setting.Type)) +
-  geom_abline(aes(intercept = 8.09, slope = 7.95, col = "LMWL")) + #LMWL from Benjamin (2005)
-  geom_abline(aes(intercept = 3.12, slope = 7.94, col = "Idaho Falls LMWL")) #From the 1976-1977 Idaho Fall LMWL
-
-ggplot() +
-  geom_point(data = all.iso, aes(x = d18O, y = d2H, col = as.factor(Event))) + 
-  geom_abline(aes(intercept = 8.09, slope = 7.95)) + #LMWL from Benjamin (2005)
-  geom_abline(aes(intercept = 3.12, slope = 7.94)) #From the 1976-1977 Idaho Fall LMWL
-
-
-ggplot() +
-  geom_point(data = run1, aes(x = d18O, y = d2H, col = "Run 1")) +
-  geom_point(data = run2, aes(x = d18O, y = d2H, col = "Run 2")) +      
-  geom_point(data = run3, aes(x = d18O, y = d2H, col = "Run 3")) +
-  geom_point(data = run4, aes(x = d18O, y = d2H, col = "Run 4")) +
-  geom_point(data = run5, aes(x = d18O, y = d2H, col = "Run 5")) +
-  geom_point(data = run6, aes(x = d18O, y = d2H, col = "Run 6")) +
-  geom_point(data = run7, aes(x = d18O, y = d2H, col = "Run 7")) +
-  geom_point(data = run8, aes(x = d18O, y = d2H, col = "Run 8")) +
-  geom_point(data = run9, aes(x = d18O, y = d2H, col = "Run 9")) +
-  geom_point(data = run10, aes(x = d18O, y = d2H, col = "Run 10")) +
-  geom_point(data = run11, aes(x = d18O, y = d2H, col = "Run 11")) +
-  geom_point(data = run12, aes(x = d18O, y = d2H, col = "Run 12")) +
-  geom_point(data = run13, aes(x = d18O, y = d2H, col = "Run 13")) +
-  geom_point(data = run14, aes(x = d18O, y = d2H, col = "Run 14")) +
-  #scale_color_viridis_d()+
-  geom_abline(aes(intercept = 8.09, slope = 7.95)) + #LMWL from Benjamin (2005)
-  geom_abline(aes(intercept = 3.12, slope = 7.94)) 
-
-
-ggplot() +
-  geom_boxplot(data = all.iso, aes(x = SITE, y = dxs))+ 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-
-
-
-res <- gstat(formula = event8_sp$dxs ~ 1, locations = event8_sp, nmax = 5,
-             set = list(idp = 0))
-
-resp <- predict(res, coop)
-resp$x <- st_coordinates(resp)[,1]
-resp$y <- st_coordinates(resp)[,2]
-resp$pred <- resp$var1.pred
-
-pred <- terra::rasterize(resp, grid, field = "pred", fun = "mean")
-tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis")
 
 
 ####Lake Interpolation####
@@ -566,44 +660,4 @@ ysi.8 <- JL_YSI_sur %>%
   filter(sample.event.normal.scheme == 8 & depth.m.2 == 0.5)
 ysi.9 <- JL_YSI_sur %>% 
   filter(sample.event.normal.scheme == 9 & depth.m.2 == 0.5)
-
-####Kriging####
-hist(event9_sp$d18O)
-Ovc <- variogram((d18O) ~ 1, event9_sp, cloud = TRUE)
-plot(Ovc) #This is a variogram cloud.
-
-Ov <- variogram(d18O ~ 1, data = event9_sp)
-plot(Ov) #This is a sample variogram
-
-Ovinitial <- vgm(psill = 0.015, model = "Sph",
-                 range = 3000, nugget = 0.005)
-plot(Ov, Ovinitial, cutoff = 1000, cex = 1.5)
-
-
-Ofv <- fit.variogram(object = Ov,
-                     model = vgm(psill = 0.015, model = "Sph",
-                                 range = 3000, nugget = 0.005))
-Ofv
-plot(Ov, Ofv, cex = 1.5)
-
-
-## d18O interpolation ##
-k <- gstat(formula = d18O ~ 1, data = event9_sp, model = Ofv)
-
-kpred <- predict(k, coop)
-kpred$d18O <- exp(kpred$var1.pred + 0.5 * (kpred$var1.var))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "d180") + theme_bw()+
-  ggtitle("July Interpolation (Kriging)")+ guides(color=guide_colorbar(title=expression(paste(delta^18, "O (\u2030)")))) +
-  theme(axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.text=element_text(size=14),
-        legend.title = element_text(size=14))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.var)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "variance") + theme_bw()
-
 
