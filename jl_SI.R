@@ -23,10 +23,6 @@ all.iso<-read_csv("~/Documents/Data/Chapter.3/Isotope.Data/isotope.data") %>%
 #JL.depth.202308 <- read_csv('~/Documents/Data/Jackson_Lake_Bathy/2023.08.23.depths.csv',show_col_types = FALSE)
 #Calling GRTE Lidar
 grte <- rast("~/Documents/Data/Chapter.1/Watershed.Delineation/dem_fill.tif")
-tm_shape(grte)+
-  tm_raster(col.scale = tmap::tm_scale_continuous(
-    values = "brewer.rd_yl_gn",
-    midpoint = NA))
 
 tribs <- read_sf(dsn = "~/Documents/Data/Chapter.3/de_Lavenne_Delineation_Attempt/stream_vector/", layer = "stream_vectors")
 tribs <- st_as_sfc(tribs)|> st_sf()
@@ -36,13 +32,9 @@ blavet_bbox <- st_bbox(c(xmin = 235000, xmax = 255000, ymax = 545000, ymin = 515
 blavet_loc <- st_as_sfc(blavet_bbox)|> st_sf()
 blavet_loc <- st_transform(blavet_loc, crs = st_crs(grte))
 
-
-
 test <- crop(grte, blavet_loc)
 tribs <- st_crop(tribs, blavet_loc)
-plot(test)
-plot(JL2, add = TRUE)
-plot(tribs, add = TRUE)
+
 #### Calling in the spatial information & setting up Jackson Lake Grid ####
 JL_SP <- read_csv('~/Documents/Data/Lake_YSI/Coords.csv',show_col_types = FALSE) %>% #Calling the latitude and longitude of each sampling point
   filter(grepl('JL', SITE))
@@ -77,8 +69,6 @@ xy <- terra::xyFromCell(grid, 1:ncell(grid)) #This is gives coordinates to each 
 coop <- st_as_sf(as.data.frame(xy), coords = c("x", "y"),
                  crs = st_crs(JL)) #this creates a dataframe with the points from the recently created grid giving the crs as JL
 coop <- st_filter(coop, JL) #This essentially clips the grid that was created to the shapefile of Jackson Lake.
-
-qtm(coop)
 ####Voronoi####
 #Calling Isotope data for each sampling event, this will allow me to form 
 #voronoi polygons around points sampled during each event
@@ -394,7 +384,6 @@ tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis", n = 7, title = expr
   tm_dots(col = "d18O", size = 0.2, palette = "viridis",legend.show = FALSE) +     
   tm_layout(main.title = plot.title,main.title.size = 1,legend.outside = TRUE, legend.title.size = 1) #plotting the raster
 
-
 #### Variogram ####
 ## Constructing a variogram for dxs ##
 hist(JLe7$dxs)
@@ -456,9 +445,9 @@ dxsfv8 <- fit.variogram(object = dxs8,
                                     range = 1400, nugget = 0.000))
 dxsfv8
 plot(dxs8, dxsfv8, cex = 1.5)
-#Decent model fit, not in love, but I think it captures the wiggles decent enough
+#Decent model fit, 
 dxsfv9 <- fit.variogram(object = dxs9,
-                        model = vgm(psill =0.3, model = "Wav",
+                        model = vgm(psill =0.3, model = "Sph",
                                     range = 900, nugget = 0.000))
 dxsfv9
 plot(dxs9, dxsfv9, cex = 1.5)
@@ -468,196 +457,491 @@ dxsfv10 <- fit.variogram(object = dxs10,
                                     range = 900, nugget = 0.000))
 dxsfv10
 plot(dxs10, dxsfv10, cex = 1.5)
-#not the bestfit but it does capture some of the data 
+#nCan't get a model to fit 
 dxsfv11 <- fit.variogram(object = dxs11,
-                         model = vgm(psill =0.25, model = "Wav",
-                                     range = 600, nugget = 0.000))
+                         model = vgm(psill =0.15, model = "Cir",
+                                     range = 500, nugget = 0))
 dxsfv11
 plot(dxs11, dxsfv11, cex = 1.5)
 
 dxsfv12 <- fit.variogram(object = dxs12,
-                         model = vgm(psill =0.2, model = "Wav",
+                         model = vgm(psill =0.2, model = "Sph",
                                      range = 1200, nugget = 0.000))
 dxsfv12
 plot(dxs12, dxsfv12, cex = 1.5)
 #### Kriging Interpolation plots ####
 ## dxs interpolation ##
-k <- gstat(formula = dxs ~ 1, data = JLe12, model = dxsfv12)
+k8 <- gstat(formula = dxs ~ 1, data = JLe8, model = dxsfv8)
+kpred8 <- predict(k8, coop)
+kpred8$x <- st_coordinates(kpred8)[,1]
+kpred8$y <- st_coordinates(kpred8)[,2]
+kpred8$pred <- kpred8$var1.pred
+krig8 <- terra::rasterize(kpred8, grid, field = "pred", fun = "mean")
 
-kpred <- predict(k, coop)
-kpred$dxs <- exp(kpred$var1.pred + 0.5 * (kpred$var1.var))
+k9 <- gstat(formula = dxs ~ 1, data = JLe9, model = dxsfv9)
+kpred9 <- predict(k9, coop)
+kpred9$x <- st_coordinates(kpred9)[,1]
+kpred9$y <- st_coordinates(kpred9)[,2]
+kpred9$pred <- kpred9$var1.pred
+krig9 <- terra::rasterize(kpred9, grid, field = "pred", fun = "mean")
 
-ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
-  geom_sf(data = JLe12) +
-  scale_color_viridis(name = "dxs", direction = -1) + theme_bw() +
-  ggtitle("August Interpolation (Kriging)")+ guides(color=guide_colorbar(title='d-excess')) +
-  theme(axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.text=element_text(size=14),
-        legend.title = element_text(size=14))
+k12 <- gstat(formula = dxs ~ 1, data = JLe12, model = dxsfv12)
+kpred12 <- predict(k12, coop)
+kpred12$x <- st_coordinates(kpred12)[,1]
+kpred12$y <- st_coordinates(kpred12)[,2]
+kpred12$pred <- kpred12$var1.pred
+krig12 <- terra::rasterize(kpred12, grid, field = "pred", fun = "mean")
 
-ggplot() + geom_sf(data = kpred, aes(color = var1.var)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "variance", direction = -1) + theme_bw()
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/dxs/dxs202308.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig8) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "-viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = "d-excess",
+      title.size = 1.7,
+      reverse = FALSE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe8)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
 
-## Constructing a variogram for d18O from Sampling event 8 ##
-hist(event8_sp$d18O)
-Ovc <- variogram((d18O) ~ 1, event8_sp, cloud = TRUE)
-plot(Ovc) #This is a variogram cloud.
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/dxs/dxs202309.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig9) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "-viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = "d-excess",
+      title.size = 1.7,
+      reverse = FALSE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe9)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
 
-Ov <- variogram(d18O ~ 1, data = event8_sp)
-plot(Ov) #This is a sample variogram
-
-Ovinitial <- vgm(psill = 0.015, model = "Sph",
-                 range = 3000, nugget = 0.005)
-plot(Ov, Ovinitial, cutoff = 1000, cex = 1.5)
-
-
-Ofv <- fit.variogram(object = Ov,
-                     model = vgm(psill = 0.015, model = "Sph",
-                                 range = 3000, nugget = 0.005))
-Ofv
-plot(Ov, Ofv, cex = 1.5)
-
-
-## d18O interpolation ##
-k <- gstat(formula = d18O ~ 1, data = event8_sp, model = Ofv)
-
-kpred <- predict(k, coop)
-kpred$d18O <- exp(kpred$var1.pred + 0.5 * (kpred$var1.var))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "d180") + theme_bw()+
-  ggtitle("August Interpolation (Kriging)")+ guides(color=guide_colorbar(title=expression(paste(delta^18, "O (\u2030)")))) +
-  theme(axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.text=element_text(size=14),
-        legend.title = element_text(size=14))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.var)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "variance") + theme_bw()
-
-## Constructing a variogram for d2h from Sampling event 8 ##
-hist(event8_sp$d2H)
-Hvc <- variogram((d2H) ~ 1, event8_sp, cloud = TRUE)
-plot(Hvc) #This is a variogram cloud.
-
-Hv <- variogram(d2H ~ 1, data = event8_sp)
-plot(Hv) #This is a sample variogram
-
-Hvinitial <- vgm(psill = 0.15, model = "Exp",
-                 range = 2500, nugget = 0.0)
-plot(Hv, Hvinitial, cutoff = 1000, cex = 1.5)
-
-
-Hfv <- fit.variogram(object = Hv,
-                     model = vgm(psill = .2, model = "Exp",
-                                 range = 4000, nugget = 0.0))
-Hfv
-plot(Hv, Hfv, cex = 1.5)
-
-
-## d2h interpolation ##
-k <- gstat(formula = d2H ~ 1, data = event8_sp, model = Hfv)
-
-kpred <- predict(k, coop)
-kpred$d2H <- exp(kpred$var1.pred + 0.5 * (kpred$var1.var))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "d2H") + theme_bw()+
-  ggtitle("August Interpolation (Kriging)")+ guides(color=guide_colorbar(title=expression(paste(delta^2, "H (\u2030)")))) +
-  theme(axis.text=element_text(size=12),
-        axis.title=element_text(size=14,face="bold"),
-        legend.text=element_text(size=14),
-        legend.title = element_text(size=14))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.var)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "variance") + theme_bw()
-
-## Constructing a variogram for dxs from Sampling event 9 ##
-hist(event9_sp$dxs)
-dxsvc <- variogram((dxs) ~ 1, event9_sp, cloud = TRUE)
-plot(dxsvc) #This is a variogram cloud.
-
-dxsv <- variogram(dxs ~ 1, data = event9_sp)
-plot(dxsv) #This is a sample variogram
-
-dxsv1 <- variogram((dxs) ~ 1, data = event9_sp)
-plot(dxsv1)
-
-dxsvinitial <- vgm(psill = 0.25, model = "Nug",
-                   range = 2000, nugget = 0.25)
-plot(dxsv, dxsvinitial, cutoff = 1000, cex = 1.5)
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/dxs/dxs202408.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig12) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "-viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = "d-excess",
+      title.size = 1.7,
+      reverse = FALSE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe12)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
 
 
-dxsfv <- fit.variogram(object = dxsv,
-                       model = vgm(psill = 0.25, model = "Wav",
-                                   range = 2500, nugget = 0.25))
-dxsfv
-plot(dxsv, dxsfv, cex = 1.5)
+## Constructing a variogram for dxs ##
+hist(JLe7$d18O)
+hist(JLe8$d18O)
+hist(JLe9$d18O)
+hist(JLe10$d18O)
+hist(JLe11$d18O)
+hist(JLe12$d18O)
+#Plotting sample variograms
+d18O7 <- variogram((d18O) ~ 1, data = JLe7)
+plot(d18O7)
+d18O8 <- variogram((d18O) ~ 1, data = JLe8)
+plot(d18O8)
+d18O9 <- variogram((d18O) ~ 1, data = JLe9)
+plot(d18O9)
+d18O10 <- variogram((d18O) ~ 1, data = JLe10)
+plot(d18O10)
+d18O11 <- variogram((d18O) ~ 1, data = JLe11)
+plot(d18O11)
+d18O12 <- variogram((d18O) ~ 1, data = JLe12)
+plot(d18O12)
+#Testing model fits with various variogram models
+#Weird Shape
+d18Ovinitial7 <- vgm(psill = 0.01, model = "Per",
+                    range = 3000, nugget = 000)
+plot(d18O7, d18Ovinitial7, cutoff = 1000, cex = 1.5)
+#Decent shape to model
+d18Ovinitial8 <- vgm(psill = 0.02, model = "Sph",
+                    range = 1400, nugget = 0.0)
+plot(d18O8, d18Ovinitial8, cutoff = 1000, cex = 1.5)
+#Went with the Wav function due to the high point at 1000 and the subsequent drop
+d18Ovinitial9 <- vgm(psill = 0.02, model = "Sph",
+                    range = 900, nugget = 0.0)
+plot(d18O9, d18Ovinitial9, cutoff = 1000, cex = 1.5)
+#Unsure of this fit
+d18Ovinitial10 <- vgm(psill = 0.4, model = "Wav",
+                     range = 500, nugget = 0)
+plot(d18O10, d18Ovinitial10, cutoff = 1000, cex = 1.5)
+#Pretty decent fit
+d18Ovinitial11 <- vgm(psill = 0.25, model = "Wav",
+                     range = 600, nugget = 0.0)
+plot(d18O11, d18Ovinitial11, cutoff = 1000, cex = 1.5)
 
-## Constructing a variogram for d18O from Sampling event 8 ##
-hist(event9_sp$d18O)
-Ovc <- variogram((d18O) ~ 1, event9_sp, cloud = TRUE)
-plot(Ovc) #This is a variogram cloud.
-
-Ov <- variogram(d18O ~ 1, data = event9_sp)
-plot(Ov) #This is a sample variogram
-
-Ovinitial <- vgm(psill = 0.01, model = "Sph",
-                 range = 2000, nugget = 0.00)
-plot(Ov, Ovinitial, cutoff = 1000, cex = 1.5)
-
-
-Ofv <- fit.variogram(object = Ov,
-                     model = vgm(psill = 0.01, model = "Sph",
-                                 range = 2000, nugget = 0.))
-Ofv
-plot(Ov, Ofv, cex = 1.5)
-
-#### Kriging Interpolation plots ####
-## dxs interpolation ##
-k <- gstat(formula = dxs ~ 1, data = event9_sp, model = dxsfv)
-
-kpred <- predict(k, coop)
-kpred$dxs <- exp(kpred$var1.pred + 0.5 * (kpred$var1.var))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "dxs") + theme_bw()
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.var)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "variance") + theme_bw()
-
-## d18O interpolation ##
-k <- gstat(formula = d18O ~ 1, data = event8_sp, model = Ofv)
-
-kpred <- predict(k, coop)
-kpred$d18O <- exp(kpred$var1.pred + 0.5 * (kpred$var1.var))
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.pred)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "dxs") + theme_bw()
-
-ggplot() + geom_sf(data = kpred, aes(color = var1.var)) +
-  geom_sf(data = event8_sp) +
-  scale_color_viridis(name = "variance") + theme_bw()
+d18Ovinitial12 <- vgm(psill = 0.20, model = "Wav",
+                     range = 1200, nugget = 0.0)
+plot(d18O12, d18Ovinitial12, cutoff = 1000, cex = 1.5)
 
 
-####Lake Interpolation####
-JL_YSI_sur <- read_csv('~/Documents/Data/Lake_YSI/2023_YSI.csv',show_col_types = FALSE) %>%  
-  mutate(DATE = as.Date(DATE, "%m/%d/%Y")) %>% 
-  filter(sample.event.normal.scheme == 7 |sample.event.normal.scheme == 8|sample.event.normal.scheme == 9| depth.m.2 == 0.5)
+#Fitting a variogram model
+#Can't get a model for sampling event 7
+d18Ofv7 <- fit.variogram(object = d18O7,
+                        model = vgm(psill =0.4, model = "Per",
+                                    range = 3000, nugget = 0.000))
+d18Ofv7
+plot(d18O7, d18Ofv7, cex = 1.5)
+#Good model fit for sampling event 8
+d18Ofv8 <- fit.variogram(object = d18O8,
+                        model = vgm(psill =0.015, model = "Sph",
+                                    range = 1000, nugget = 0.000))
+d18Ofv8
+plot(d18O8, d18Ofv8, cex = 1.5)
+#Decent model fit, 
+d18Ofv9 <- fit.variogram(object = d18O9,
+                        model = vgm(psill =0.02, model = "Sph",
+                                    range = 900, nugget = 0.000))
+d18Ofv9
+plot(d18O9, d18Ofv9, cex = 1.5)
+#Unsure of how to approach this odd data set
+d18Ofv10 <- fit.variogram(object = d18O10,
+                         model = vgm(psill =0.3, model = "Wav",
+                                     range = 900, nugget = 0.000))
+d18Ofv10
+plot(d18O10, d18Ofv10, cex = 1.5)
+#nCan't get a model to fit 
+d18Ofv11 <- fit.variogram(object = d18O11,
+                         model = vgm(psill =0.15, model = "Cir",
+                                     range = 500, nugget = 0))
+d18Ofv11
+plot(d18O11, d18Ofv11, cex = 1.5)
 
-ysi.7 <- JL_YSI_sur %>% 
-  filter(sample.event.normal.scheme == 7 & depth.m.2 == 0.5)
-ysi.8 <- JL_YSI_sur %>% 
-  filter(sample.event.normal.scheme == 8 & depth.m.2 == 0.5)
-ysi.9 <- JL_YSI_sur %>% 
-  filter(sample.event.normal.scheme == 9 & depth.m.2 == 0.5)
+d18Ofv12 <- fit.variogram(object = d18O12,
+                         model = vgm(psill =0.015, model = "Sph",
+                                     range = 1200, nugget = 0.000))
+d18Ofv12
+plot(d18O12, d18Ofv12, cex = 1.5)
+
+k8 <- gstat(formula = d18O ~ 1, data = JLe8, model = d18Ofv8)
+kpred8 <- predict(k8, coop)
+kpred8$x <- st_coordinates(kpred8)[,1]
+kpred8$y <- st_coordinates(kpred8)[,2]
+kpred8$pred <- kpred8$var1.pred
+krig8 <- terra::rasterize(kpred8, grid, field = "pred", fun = "mean")
+
+k9 <- gstat(formula = d18O ~ 1, data = JLe9, model = d18Ofv9)
+kpred9 <- predict(k9, coop)
+kpred9$x <- st_coordinates(kpred9)[,1]
+kpred9$y <- st_coordinates(kpred9)[,2]
+kpred9$pred <- kpred9$var1.pred
+krig9 <- terra::rasterize(kpred9, grid, field = "pred", fun = "mean")
+
+k12 <- gstat(formula = d18O ~ 1, data = JLe12, model = d18Ofv12)
+kpred12 <- predict(k12, coop)
+kpred12$x <- st_coordinates(kpred12)[,1]
+kpred12$y <- st_coordinates(kpred12)[,2]
+kpred12$pred <- kpred12$var1.pred
+krig12 <- terra::rasterize(kpred12, grid, field = "pred", fun = "mean")
+
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/d18O/d18O202308.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig8) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^18, "O (\u2030)")),
+      title.size = 1.7,
+      reverse = TRUE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe8)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
+
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/d18O/d18O202309.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig9) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^18, "O (\u2030)")),
+      title.size = 1.7,
+      reverse = TRUE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe9)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
+
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/d18O/d18O202408.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig12) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^18, "O (\u2030)")),
+      title.size = 1.7,
+      reverse = TRUE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe12)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
+
+
+
+
+## Constructing a variogram for dxs ##
+hist(JLe7$d2H)
+hist(JLe8$d2H)
+hist(JLe9$d2H)
+hist(JLe10$d2H)
+hist(JLe11$d2H)
+hist(JLe12$d2H)
+#Plotting sample variograms
+d2H7 <- variogram((d2H) ~ 1, data = JLe7)
+plot(d2H7)
+d2H8 <- variogram((d2H) ~ 1, data = JLe8)
+plot(d2H8)
+d2H9 <- variogram((d2H) ~ 1, data = JLe9)
+plot(d2H9)
+d2H10 <- variogram((d2H) ~ 1, data = JLe10)
+plot(d2H10)
+d2H11 <- variogram((d2H) ~ 1, data = JLe11)
+plot(d2H11)
+d2H12 <- variogram((d2H) ~ 1, data = JLe12)
+plot(d2H12)
+#Testing model fits with various variogram models
+#Weird Shape
+d2Hvinitial7 <- vgm(psill = 0.01, model = "Per",
+                     range = 3000, nugget = 000)
+plot(d2H7, d2Hvinitial7, cutoff = 1000, cex = 1.5)
+#Decent shape to model
+d2Hvinitial8 <- vgm(psill = 0.02, model = "Sph",
+                     range = 1400, nugget = 0.0)
+plot(d2H8, d2Hvinitial8, cutoff = 1000, cex = 1.5)
+#Went with the Wav function due to the high point at 1000 and the subsequent drop
+d2Hvinitial9 <- vgm(psill = 0.02, model = "Sph",
+                     range = 900, nugget = 0.0)
+plot(d2H9, d2Hvinitial9, cutoff = 1000, cex = 1.5)
+#Unsure of this fit
+d2Hvinitial10 <- vgm(psill = 0.4, model = "Wav",
+                      range = 500, nugget = 0)
+plot(d2H10, d2Hvinitial10, cutoff = 1000, cex = 1.5)
+#Pretty decent fit
+d2Hvinitial11 <- vgm(psill = 0.25, model = "Wav",
+                      range = 600, nugget = 0.0)
+plot(d2H11, d2Hvinitial11, cutoff = 1000, cex = 1.5)
+
+d2Hvinitial12 <- vgm(psill = 0.20, model = "Wav",
+                      range = 1200, nugget = 0.0)
+plot(d2H12, d2Hvinitial12, cutoff = 1000, cex = 1.5)
+
+
+#Fitting a variogram model
+#Can't get a model for sampling event 7
+d2Hfv7 <- fit.variogram(object = d2H7,
+                         model = vgm(psill =0.4, model = "Per",
+                                     range = 3000, nugget = 0.000))
+d2Hfv7
+plot(d2H7, d2Hfv7, cex = 1.5)
+#Good model fit for sampling event 8
+d2Hfv8 <- fit.variogram(object = d2H8,
+                         model = vgm(psill =0.3, model = "Sph",
+                                     range = 1000, nugget = 0.000))
+d2Hfv8
+plot(d2H8, d2Hfv8, cex = 1.5)
+#Decent model fit, 
+d2Hfv9 <- fit.variogram(object = d2H9,
+                         model = vgm(psill =0.3, model = "Sph",
+                                     range = 900, nugget = 0.000))
+d2Hfv9
+plot(d2H9, d2Hfv9, cex = 1.5)
+#Unsure of how to approach this odd data set
+d2Hfv10 <- fit.variogram(object = d2H10,
+                          model = vgm(psill =0.3, model = "Wav",
+                                      range = 900, nugget = 0.000))
+d2Hfv10
+plot(d2H10, d2Hfv10, cex = 1.5)
+#nCan't get a model to fit 
+d2Hfv11 <- fit.variogram(object = d2H11,
+                          model = vgm(psill =0.3, model = "Sph",
+                                      range = 1000, nugget = 0))
+d2Hfv11
+plot(d2H11, d2Hfv11, cex = 1.5)
+
+d2Hfv12 <- fit.variogram(object = d2H12,
+                          model = vgm(psill =0.015, model = "Sph",
+                                      range = 1200, nugget = 0.000))
+d2Hfv12
+plot(d2H12, d2Hfv12, cex = 1.5)
+
+k8 <- gstat(formula = d2H ~ 1, data = JLe8, model = d2Hfv8)
+kpred8 <- predict(k8, coop)
+kpred8$x <- st_coordinates(kpred8)[,1]
+kpred8$y <- st_coordinates(kpred8)[,2]
+kpred8$pred <- kpred8$var1.pred
+krig8 <- terra::rasterize(kpred8, grid, field = "pred", fun = "mean")
+
+k9 <- gstat(formula = d2H ~ 1, data = JLe9, model = d2Hfv9)
+kpred9 <- predict(k9, coop)
+kpred9$x <- st_coordinates(kpred9)[,1]
+kpred9$y <- st_coordinates(kpred9)[,2]
+kpred9$pred <- kpred9$var1.pred
+krig9 <- terra::rasterize(kpred9, grid, field = "pred", fun = "mean")
+
+k11 <- gstat(formula = d2H ~ 1, data = JLe11, model = d2Hfv11)
+kpred11 <- predict(k11, coop)
+kpred11$x <- st_coordinates(kpred11)[,1]
+kpred11$y <- st_coordinates(kpred11)[,2]
+kpred11$pred <- kpred11$var1.pred
+krig11 <- terra::rasterize(kpred11, grid, field = "pred", fun = "mean")
+
+k12 <- gstat(formula = d2H ~ 1, data = JLe12, model = d2Hfv12)
+kpred12 <- predict(k12, coop)
+kpred12$x <- st_coordinates(kpred12)[,1]
+kpred12$y <- st_coordinates(kpred12)[,2]
+kpred12$pred <- kpred12$var1.pred
+krig12 <- terra::rasterize(kpred12, grid, field = "pred", fun = "mean")
+
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/d2H/d2H202308.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig8) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^2, "H (\u2030)")),
+      title.size = 1.7,
+      reverse = TRUE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe8)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
+
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/d2H/d2H202309.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig9) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^2, "H (\u2030)")),
+      title.size = 1.7,
+      reverse = TRUE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe9)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
+
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/d2H/d2H202407.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig11) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^2, "H (\u2030)")),
+      title.size = 1.7,
+      reverse = TRUE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe11)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
+
+png(filename="~/Documents/Data/Chapter.3/Figures/kriging/d2H/d2H202408.png", width = 700, height = 1000)
+tm_shape(test)+
+  tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "grey",
+    midpoint = NA),
+    col.legend = tmap::tm_legend_hide()) + 
+  tm_shape(tribs) + tm_lines(col = "cadetblue", lwd = 2) + 
+  tm_shape(krig12) + tm_raster(col.scale = tmap::tm_scale_continuous(
+    values = "viridis",
+    midpoint = NA),
+    col.legend = tmap::tm_legend(
+      title = expression(paste(delta^2, "H (\u2030)")),
+      title.size = 1.7,
+      reverse = TRUE,
+      text.size = 1.7,
+      bg.color = "white",
+      bg.alpha = 0.7,
+      position = tmap::tm_pos_in("right", "top"),
+      frame = TRUE))+
+  tm_options(component.autoscale = (FALSE))+ 
+  tm_shape(JLe12)+ tm_dots(col = "dxs", size = 0.4, palette = "black",legend.show = FALSE)
+dev.off()
 
